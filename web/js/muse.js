@@ -2,8 +2,8 @@
 // 功能:上傳圖片/影片/音訊、媒體縮圖列、@tag 自動完成、點縮圖插入 @tag
 // 狀態存在 prompt / media_json 兩個 widget,隨工作流序列化
 
-import { app } from "../../scripts/app.js";
-import { api } from "../../scripts/api.js";
+import { app } from "../../../scripts/app.js";
+import { api } from "../../../scripts/api.js";
 
 const NODE_CLASS = "NMMuseNode";
 const UPLOAD_SUBFOLDER = "nm_muse";
@@ -11,16 +11,18 @@ const UPLOAD_SUBFOLDER = "nm_muse";
 const IMAGE_EXTS = ["png", "jpg", "jpeg", "webp", "bmp", "gif", "tiff"];
 const VIDEO_EXTS = ["mp4", "webm", "mov", "avi", "mkv"];
 const AUDIO_EXTS = ["wav", "mp3", "flac", "ogg", "m4a"];
-const ACCEPT = [...IMAGE_EXTS, ...VIDEO_EXTS, ...AUDIO_EXTS]
+const MODEL3D_EXTS = ["glb", "gltf", "obj", "fbx", "stl", "ply", "usdz"];
+const ACCEPT = [...IMAGE_EXTS, ...VIDEO_EXTS, ...AUDIO_EXTS, ...MODEL3D_EXTS]
     .map((e) => "." + e).join(",");
-const TAG_PREFIX = { image: "img", video: "vid", audio: "aud" };
-const KIND_ICON = { image: "🖼️", video: "🎬", audio: "🎵" };
+const TAG_PREFIX = { image: "img", video: "vid", audio: "aud", model: "mdl" };
+const KIND_ICON = { image: "🖼️", video: "🎬", audio: "🎵", model: "🧊" };
 
 function kindOf(name) {
     const ext = (name.split(".").pop() || "").toLowerCase();
     if (IMAGE_EXTS.includes(ext)) return "image";
     if (VIDEO_EXTS.includes(ext)) return "video";
     if (AUDIO_EXTS.includes(ext)) return "audio";
+    if (MODEL3D_EXTS.includes(ext)) return "model";
     return "";
 }
 
@@ -46,24 +48,30 @@ app.registerExtension({
 });
 
 function setupMuse(node) {
-    const promptW = node.widgets?.find((w) => w.name === "prompt");
-    const mediaW = node.widgets?.find((w) => w.name === "media_json");
-    if (!promptW || !mediaW) return;
+    // 注意:新版前端會在節點建立後把 widget 物件換成 reactive 版,
+    // 不能在這裡快取 widget 參照,每次都要從 node.widgets 重新解析。
+    const wPrompt = () => node.widgets?.find((w) => w.name === "prompt");
+    const wMedia = () => node.widgets?.find((w) => w.name === "media_json");
+    if (!wPrompt() || !wMedia()) return;
 
-    // media_json 由前端維護,隱藏起來(仍會序列化)
-    mediaW.computeSize = () => [0, -4];
-    if (mediaW.inputEl) mediaW.inputEl.style.display = "none";
+    // media_json 由前端維護。注意:不能用 computeSize=[0,-4] 這類 hack 隱藏,
+    // 新版前端會因此重建 widget 並把值打回預設,改用官方 hidden 旗標(失敗就不隱藏)。
+    try {
+        const w = wMedia();
+        if (w && "hidden" in w) w.hidden = true;
+    } catch { /* 隱藏失敗不影響功能 */ }
 
     const getMedia = () => {
         try {
-            const v = JSON.parse(mediaW.value || "[]");
+            const v = JSON.parse(wMedia()?.value || "[]");
             return Array.isArray(v) ? v : [];
         } catch {
             return [];
         }
     };
     const setMedia = (media) => {
-        mediaW.value = JSON.stringify(media);
+        const w = wMedia();
+        if (w) w.value = JSON.stringify(media);
         renderChips();
         node.setDirtyCanvas(true, true);
     };
@@ -95,7 +103,29 @@ function setupMuse(node) {
     fileInput.accept = ACCEPT;
     fileInput.style.display = "none";
 
-    toolbar.append(uploadBtn, hint, fileInput);
+    // 「⬆ 生成」:免去點 ComfyUI Run 的動作,打完字直接送出(grok.com 體感)
+    const sendBtn = document.createElement("button");
+    sendBtn.textContent = "⬆ 生成";
+    sendBtn.title = "送出目前工作流(Ctrl+Enter)";
+    sendBtn.style.cssText =
+        "flex:0 0 auto;margin-left:auto;padding:5px 14px;border-radius:12px;border:none;" +
+        "background:#4a7dff;color:#fff;cursor:pointer;font-size:12px;font-weight:600;";
+    sendBtn.onclick = () => queueNow();
+
+    async function queueNow() {
+        sendBtn.disabled = true;
+        sendBtn.textContent = "⏳ 排隊中…";
+        try {
+            await app.queuePrompt(0);
+        } catch (e) {
+            alert(`送出失敗:${e}`);
+        } finally {
+            sendBtn.disabled = false;
+            sendBtn.textContent = "⬆ 生成";
+        }
+    }
+
+    toolbar.append(uploadBtn, hint, sendBtn, fileInput);
 
     const chips = document.createElement("div");
     chips.style.cssText =
@@ -210,15 +240,17 @@ function setupMuse(node) {
     // @tag 插入與自動完成
     // ------------------------------------------------------------------
     function insertTag(text) {
-        const el = promptW.inputEl;
+        const w = wPrompt();
+        if (!w) return;
+        const el = w.inputEl;
         if (el && typeof el.selectionStart === "number") {
             const s = el.selectionStart, e = el.selectionEnd;
             el.value = el.value.slice(0, s) + text + " " + el.value.slice(e);
             el.selectionStart = el.selectionEnd = s + text.length + 1;
             el.focus();
-            promptW.value = el.value;
+            w.value = el.value;
         } else {
-            promptW.value = (promptW.value || "") + (promptW.value ? " " : "") + text;
+            w.value = (w.value || "") + (w.value ? " " : "") + text;
         }
         node.setDirtyCanvas(true, true);
     }
@@ -252,20 +284,27 @@ function setupMuse(node) {
                 const before = el.value.slice(0, s).replace(/@[\w-]*$/, "@" + m.tag + " ");
                 el.value = before + el.value.slice(s);
                 el.selectionStart = el.selectionEnd = before.length;
-                promptW.value = el.value;
+                const w = wPrompt();
+                if (w) w.value = el.value;
                 hideMenu();
                 el.focus();
             };
             menu.append(row);
         }
-        const r = el.getBoundingClientRect();
-        menu.style.left = `${r.left + 8}px`;
-        menu.style.top = `${Math.max(8, r.top - menu.offsetHeight - 4)}px`;
+        // 錨定在節點工具列上方(inputEl 在新版前端是隱藏 overlay,rect 不可靠)
         menu.style.display = "flex";
+        menu.style.visibility = "hidden";
+        requestAnimationFrame(() => {
+            let r = container.getBoundingClientRect();
+            if (!r.width && el.getBoundingClientRect().width) r = el.getBoundingClientRect();
+            menu.style.left = `${Math.max(8, r.left)}px`;
+            menu.style.top = `${Math.max(8, r.top - menu.offsetHeight - 6)}px`;
+            menu.style.visibility = "visible";
+        });
     }
 
     function bindAutocomplete() {
-        const el = promptW.inputEl;
+        const el = wPrompt()?.inputEl;
         if (!el || el.dataset.museBound) return;
         el.dataset.museBound = "1";
         el.addEventListener("input", () => {
@@ -275,13 +314,22 @@ function setupMuse(node) {
             else hideMenu();
         });
         el.addEventListener("blur", () => setTimeout(hideMenu, 150));
+        // Ctrl+Enter / Cmd+Enter 直接送出
+        el.addEventListener("keydown", (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                e.preventDefault();
+                const w = wPrompt();
+                if (w) w.value = el.value;
+                queueNow();
+            }
+        });
     }
     // inputEl 可能延遲建立(新版前端),輪詢綁定幾次
     bindAutocomplete();
     let tries = 0;
     const timer = setInterval(() => {
         bindAutocomplete();
-        if (promptW.inputEl?.dataset.museBound || ++tries > 20) clearInterval(timer);
+        if (wPrompt()?.inputEl?.dataset.museBound || ++tries > 60) clearInterval(timer);
     }, 500);
 
     // 工作流載入後 media_json 才有值,補畫縮圖列
@@ -291,5 +339,15 @@ function setupMuse(node) {
         const r = onConfigure?.apply(this, arguments);
         requestAnimationFrame(renderChips);
         return r;
+    };
+
+    // 節點移除時清掉 document 層級的殘留(自動完成選單、工具列 DOM),
+    // 否則 graph.clear() / 換工作流後會留下幽靈按鈕
+    const onRemoved = node.onRemoved;
+    node.onRemoved = function () {
+        clearInterval(timer);
+        menu.remove();
+        container.remove();
+        return onRemoved?.apply(this, arguments);
     };
 }

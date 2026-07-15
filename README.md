@@ -40,6 +40,11 @@
 
 - **only_tagged** 開關:開啟時只輸出提示詞中 `@` 到的媒體;預設輸出全部
 - **不落地原則**:本節點不寫任何檔案,上傳檔走 ComfyUI 內建 `/upload/image`
+- **一鍵送出**(不用去點 ComfyUI 的 Run):
+  - 節點上的「**⬆ 生成**」按鈕直接送出目前工作流
+  - 提示詞欄 **Ctrl+Enter**(Mac 為 Cmd+Enter)快捷送出
+  - 想「改完自動跑」可搭配 ComfyUI 內建 Auto Queue:Queue 按鈕旁選單改為
+    `change` 模式,任何 widget 變動即自動排隊執行
 
 ## 搭配範例
 

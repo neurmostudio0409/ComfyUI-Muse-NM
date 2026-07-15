@@ -50,6 +50,8 @@ MEDIA = [
      "type": "input", "kind": "video"},
     {"tag": "aud1", "name": "voice.wav", "subfolder": "nm_muse",
      "type": "input", "kind": "audio"},
+    {"tag": "mdl1", "name": "chair.glb", "subfolder": "nm_muse",
+     "type": "input", "kind": "model"},
 ]
 
 
@@ -67,7 +69,8 @@ def test_category_and_outputs(pkg):
     node = pkg.NODE_CLASS_MAPPINGS["NMMuseNode"]
     assert node.CATEGORY == "utils/NM/Muse"
     assert node.RETURN_TYPES == (
-        "STRING", "STRING", "IMAGE", "VIDEO", "AUDIO", "STRING")
+        "STRING", "STRING", "IMAGE", "VIDEO", "AUDIO", "STRING", "STRING")
+    assert node.RETURN_NAMES[5] == "model_path"
     # 不落地原則:不是 OUTPUT_NODE
     assert not getattr(node, "OUTPUT_NODE", False)
 
@@ -77,6 +80,12 @@ def test_input_types(pkg):
     assert "prompt" in it["required"]
     assert "media_json" in it["required"]
     assert "only_tagged" in it["optional"]
+    # 輸入樞紐:接上游各種生成模型(LTX / WAN / CLIP / LLM…)
+    assert it["optional"]["images_in"][0] == "IMAGE"
+    assert it["optional"]["video_in"][0] == "VIDEO"
+    assert it["optional"]["audio_in"][0] == "AUDIO"
+    assert it["optional"]["text_in"][0] == "STRING"
+    assert it["optional"]["text_in"][1]["forceInput"] is True
 
 
 def test_web_js_exists(pkg):
@@ -90,7 +99,7 @@ def test_web_js_exists(pkg):
 def test_parse_media_json_valid(pkg):
     u = _utils()
     media = u.parse_media_json(json.dumps(MEDIA))
-    assert [m["tag"] for m in media] == ["img1", "img2", "vid1", "aud1"]
+    assert [m["tag"] for m in media] == ["img1", "img2", "vid1", "aud1", "mdl1"]
 
 
 def test_parse_media_json_garbage(pkg):
@@ -124,7 +133,7 @@ def test_used_media_fallback_all(pkg):
     """提示詞沒 @tag 時回傳全部媒體"""
     u = _utils()
     got = u.used_media("純文字提示", MEDIA)
-    assert [m["tag"] for m in got] == ["img1", "img2", "vid1", "aud1"]
+    assert [m["tag"] for m in got] == ["img1", "img2", "vid1", "aud1", "mdl1"]
 
 
 def test_resolve_prompt(pkg):
@@ -145,6 +154,7 @@ def test_kind_of(pkg):
     assert s.kind_of("a.PNG") == "image"
     assert s.kind_of("b.mp4") == "video"
     assert s.kind_of("c.wav") == "audio"
+    assert s.kind_of("chair.GLB") == "model"
     assert s.kind_of("d.txt") == ""
 
 
@@ -154,12 +164,33 @@ def test_kind_of(pkg):
 
 def test_compose_without_files(pkg):
     node = pkg.NODE_CLASS_MAPPINGS["NMMuseNode"]()
-    prompt, resolved, images, video, audio, info = node.compose(
+    prompt, resolved, images, video, audio, model_path, info = node.compose(
         "把 @img1 動起來", json.dumps(MEDIA), only_tagged=True)
     assert prompt == "把 @img1 動起來"
     assert "[image img1: cat.png]" in resolved
-    # 檔案不存在 → 載入結果為 None,但不拋例外
+    # 檔案不存在 → 載入結果為 None / 空字串,但不拋例外
     assert images is None and video is None and audio is None
+    assert model_path == ""
     parsed = json.loads(info)
     assert parsed["selected"] == ["img1"]
     assert parsed["counts"]["image"] == 1
+
+
+def test_compose_text_in(pkg):
+    """@text 內插;未引用則附加尾端"""
+    node = pkg.NODE_CLASS_MAPPINGS["NMMuseNode"]()
+    out = node.compose("依據 @text 生成", "[]", text_in="一隻橘貓")
+    assert out[0] == "依據 一隻橘貓 生成"
+    out2 = node.compose("生成圖片", "[]", text_in="一隻橘貓")
+    assert out2[0] == "生成圖片\n一隻橘貓"
+    parsed = json.loads(out2[6])
+    assert parsed["inputs_connected"]["text_in"] is True
+
+
+def test_compose_passthrough_inputs(pkg):
+    """上游輸入直通:video_in / audio_in 原樣輸出(不需 torch)"""
+    node = pkg.NODE_CLASS_MAPPINGS["NMMuseNode"]()
+    fake_video, fake_audio = object(), {"waveform": None, "sample_rate": 24000}
+    out = node.compose("test", "[]", video_in=fake_video, audio_in=fake_audio)
+    assert out[3] is fake_video
+    assert out[4] is fake_audio

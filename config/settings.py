@@ -33,9 +33,13 @@ CATEGORY_PROMPT = "utils/NM/Muse"
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".tiff"}
 VIDEO_EXTS = {".mp4", ".webm", ".mov", ".avi", ".mkv"}
 AUDIO_EXTS = {".wav", ".mp3", ".flac", ".ogg", ".m4a"}
+MODEL3D_EXTS = {".glb", ".gltf", ".obj", ".fbx", ".stl", ".ply", ".usdz"}
 
-# @tag 前綴(依媒體種類自動編號:img1, vid1, aud1…)
-TAG_PREFIXES = {"image": "img", "video": "vid", "audio": "aud"}
+# @tag 前綴(依媒體種類自動編號:img1, vid1, aud1, mdl1…)
+TAG_PREFIXES = {"image": "img", "video": "vid", "audio": "aud", "model": "mdl"}
+
+# 上游 text_in 在提示詞中的保留 tag(@text)
+TEXT_IN_TAG = "text"
 
 # 提示詞中的 tag 語法:@img1、@vid2…(前端與後端共用此規則)
 TAG_PATTERN = r"@([A-Za-z][A-Za-z0-9_\-]*)"
@@ -50,4 +54,6 @@ def kind_of(filename: str) -> str:
         return "video"
     if ext in AUDIO_EXTS:
         return "audio"
+    if ext in MODEL3D_EXTS:
+        return "model"
     return ""

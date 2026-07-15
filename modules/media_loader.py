@@ -24,6 +24,33 @@ def media_path(item: dict) -> str:
     return os.path.join(base, item["name"])
 
 
+def existing_path(item: dict) -> str:
+    """media_json 項目 → 存在的檔案路徑;不存在回傳空字串(3D 模型等直接給路徑)"""
+    path = media_path(item)
+    if os.path.exists(path):
+        return path
+    print(f"⚠️ 找不到檔案 {path}")
+    return ""
+
+
+def concat_image_batches(a, b):
+    """兩個 IMAGE batch 串接;尺寸不同時把 b 縮放成 a 的尺寸"""
+    import numpy as np
+    import torch
+    from PIL import Image
+
+    if a.shape[1:3] != b.shape[1:3]:
+        h, w = a.shape[1], a.shape[2]
+        resized = []
+        for i in range(b.shape[0]):
+            arr = (b[i].cpu().numpy() * 255.0).astype("uint8")
+            pil = Image.fromarray(arr).resize((w, h), Image.LANCZOS)
+            resized.append(torch.from_numpy(
+                (np.asarray(pil).astype(np.float32) / 255.0)).unsqueeze(0))
+        b = torch.cat(resized, dim=0)
+    return torch.cat([a.cpu(), b.cpu()], dim=0)
+
+
 # ----------------------------------------------------------------------
 # 圖片 → IMAGE batch
 # ----------------------------------------------------------------------
