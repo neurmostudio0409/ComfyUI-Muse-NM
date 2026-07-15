@@ -22,7 +22,11 @@
 ## 功能
 
 - **上傳媒體**:節點上的「⬆ 上傳媒體」按鈕,多選圖片(png/jpg/webp…)、
-  影片(mp4/webm/mov…)、音訊(wav/mp3/flac…),存進 `input/nm_muse/`
+  影片(mp4/webm/mov…)、音訊(wav/mp3/flac…)、3D 模型(glb/obj/fbx/stl…),
+  存進 `input/nm_muse/`
+- **輸入樞紐**:`images_in` / `video_in` / `audio_in` / `text_in` 輸入孔,
+  接 LTX、WAN(API)、CLIP、LLM、TTS 等任何上游輸出——圖片與上傳圖合併成
+  batch;影片/音訊上游優先;`text_in` 在提示詞用 `@text` 內插,未引用則附加尾端
 - **@tag 引用**:每個媒體自動命名 `img1`、`vid1`、`aud1`…
   - 提示詞輸入 `@` 跳出自動完成選單
   - 點媒體縮圖直接插入 `@tag`
@@ -35,8 +39,9 @@
 | `prompt_resolved` | STRING | `@img1` 展開為 `[image img1: cat.png]`,適合餵 LLM |
 | `images` | IMAGE | 上傳圖片組成的 batch(尺寸不一以第一張為準縮放) |
 | `video` | VIDEO | 第一部上傳影片(核心 VIDEO 型別,可接 Save Video / 影片模型) |
-| `audio` | AUDIO | 第一段上傳音訊(`{waveform, sample_rate}`) |
-| `media_info` | STRING | 完整媒體清單 JSON,供自訂節點解析 |
+| `audio` | AUDIO | 第一段上傳音訊(`{waveform, sample_rate}`),`audio_in` 優先 |
+| `model_path` | STRING | 第一個上傳 3D 模型的檔案路徑(接 image-to-3D / 3D 檢視節點) |
+| `media_info` | STRING | 完整媒體清單 JSON(含 `model_paths` 與輸入連接狀態) |
 
 - **only_tagged** 開關:開啟時只輸出提示詞中 `@` 到的媒體;預設輸出全部
 - **不落地原則**:本節點不寫任何檔案,上傳檔走 ComfyUI 內建 `/upload/image`
