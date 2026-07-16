@@ -71,8 +71,22 @@ image / audio / video / 3D / text 五種媒體 **input、output 對稱**,
   實機跑真模型時若遇型別問題請回報
 
 原則:**檔案一律走上傳(media_json),模型輸出一律走節點孔**,兩者不混。
-兩顆共用同一套工具列(上傳 / @tag / ⬆生成),運算邏輯單一來源
+共用同一套工具列(上傳 / @tag / ⬆生成),運算邏輯單一來源
 (Hub 委託靈感提示欄的 compose)。
+
+### Mock 假生成器(`utils/NM/Muse/mock`)
+
+四顆免模型、零 VRAM 的假生成器,輸出型別與真模型節點一致,可直接換接:
+
+| 節點 | 輸出 | 內容 |
+|------|------|------|
+| NM Mock 圖片生成 | IMAGE | 確定性漸層圖(配色由 prompt+seed hash 決定) |
+| NM Mock 影片生成 | VIDEO / IMAGE(frames)/ FLOAT(fps) | 動態漸層 |
+| NM Mock 音訊生成 | AUDIO | 正弦波(220~880Hz 由 hash 決定,含淡入淡出) |
+| NM Mock 文字生成 | STRING | 模擬 LLM 風格建議 |
+
+用途:組範例 / 整合測試 / 外部前端開發時的假後端——同 prompt+seed 必同輸出。
+範例:`example_workflows/Muse_Mock_Demo.json`(Mock×4 → Hub → 下游全接,秒跑)。
 
 ## 外部前端系統整合(API 驅動)
 

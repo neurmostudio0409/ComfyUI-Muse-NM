@@ -23,9 +23,15 @@ if __package__:
         NODE_CLASS_MAPPINGS as _SAMPLER_NODES,
         NODE_DISPLAY_NAME_MAPPINGS as _SAMPLER_NAMES,
     )
+    from .modules.mock_nodes import (
+        NODE_CLASS_MAPPINGS as _MOCK_NODES,
+        NODE_DISPLAY_NAME_MAPPINGS as _MOCK_NAMES,
+    )
 
-    NODE_CLASS_MAPPINGS = {**_MUSE_NODES, **_HUB_NODES, **_SAMPLER_NODES}
-    NODE_DISPLAY_NAME_MAPPINGS = {**_MUSE_NAMES, **_HUB_NAMES, **_SAMPLER_NAMES}
+    NODE_CLASS_MAPPINGS = {**_MUSE_NODES, **_HUB_NODES, **_SAMPLER_NODES,
+                           **_MOCK_NODES}
+    NODE_DISPLAY_NAME_MAPPINGS = {**_MUSE_NAMES, **_HUB_NAMES, **_SAMPLER_NAMES,
+                                  **_MOCK_NAMES}
 
     # 給外部前端系統的查詢路由:列出已上傳的 Muse 媒體
     try:
@@ -69,6 +75,8 @@ if __package__:
     print("   🔀 NM Muse 集成樞紐 Hub(NMMuseHubNode:images/video/audio/text 接模型輸出)")
     print("   🎲 NM Muse 取樣器 Sampler(NMMuseSamplerNode:image_model/video_model/")
     print("      audio_model + CLIP/VAE,節點內直接取樣生成)")
+    print("   🎭 NM Mock 假生成器 ×4(圖片/影片/音訊/文字,零 VRAM 免模型,")
+    print("      輸出型別與真節點一致,組範例與整合測試用)")
     print("📦 功能:")
     print("   ⬆ 上傳圖片 / 影片 / 音訊 / 3D(多選,存 input/nm_muse/)")
     print("   🏷️ 提示詞 @tag 引用媒體(輸入 @ 自動完成、點縮圖插入)")

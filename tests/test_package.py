@@ -61,7 +61,8 @@ MEDIA = [
 
 def test_node_mappings(pkg):
     assert set(pkg.NODE_CLASS_MAPPINGS) == {
-        "NMMuseNode", "NMMuseHubNode", "NMMuseSamplerNode"}
+        "NMMuseNode", "NMMuseHubNode", "NMMuseSamplerNode",
+        "NMMockImageNode", "NMMockVideoNode", "NMMockAudioNode", "NMMockTextNode"}
     assert set(pkg.NODE_DISPLAY_NAME_MAPPINGS) == set(pkg.NODE_CLASS_MAPPINGS)
     assert pkg.WEB_DIRECTORY == "./web"
 
@@ -345,6 +346,40 @@ def test_sampler_requires_model(pkg):
         s.generate("t", "[]", image_model=object(), **kw)
     with pytest.raises(RuntimeError, match="vae"):
         s.generate("t", "[]", image_model=object(), clip=object(), **kw)
+
+
+def test_mock_text_deterministic(pkg):
+    """假 LLM:同 prompt+seed 必同輸出(純 Python,CI 可跑)"""
+    node = pkg.NODE_CLASS_MAPPINGS["NMMockTextNode"]()
+    a = node.generate("一隻貓", 7)[0]
+    b = node.generate("一隻貓", 7)[0]
+    c = node.generate("一隻貓", 8)[0]
+    assert a == b
+    assert "一隻貓" in a
+    assert isinstance(c, str)
+
+
+def test_mock_categories(pkg):
+    mocks = [k for k in pkg.NODE_CLASS_MAPPINGS if k.startswith("NMMock")]
+    assert len(mocks) == 4
+    for k in mocks:
+        assert pkg.NODE_CLASS_MAPPINGS[k].CATEGORY == "utils/NM/Muse/mock"
+
+
+def test_mock_media_shapes(pkg):
+    """假圖片/影片/音訊輸出形狀(需 torch,CI 自動跳過)"""
+    pytest.importorskip("torch")
+    m = pkg.NODE_CLASS_MAPPINGS
+    imgs = m["NMMockImageNode"]().generate("t", 64, 48, 3, 0)[0]
+    assert list(imgs.shape) == [3, 48, 64, 3]
+    video, frames, fps = m["NMMockVideoNode"]().generate("t", 64, 48, 5, 8.0, 0)
+    assert list(frames.shape) == [5, 48, 64, 3] and fps == 8.0
+    audio = m["NMMockAudioNode"]().generate("t", 1.0, 24000, 0)[0]
+    assert audio["sample_rate"] == 24000
+    assert audio["waveform"].shape[-1] == 24000
+    # 確定性:同參數重跑 tensor 完全一致
+    imgs2 = m["NMMockImageNode"]().generate("t", 64, 48, 3, 0)[0]
+    assert (imgs - imgs2).abs().max().item() == 0.0
 
 
 def test_video_components_object(pkg):
