@@ -48,12 +48,23 @@ image / audio / video / 3D / text 五種媒體 **input、output 對稱**,
 | `model_path` | STRING | `model_in` 優先,否則第一個上傳 3D 模型的路徑 |
 | `media_info` | STRING | 完整媒體清單 JSON(含 `model_paths`、`fps`、輸入連接狀態) |
 
-## 兩顆節點
+## 三顆節點
 
 | 節點 | 輸入孔 | 輸出孔 | 用途 |
 |------|--------|--------|------|
-| **NM Muse 集成樞紐 (Hub)**(建議) | `images` / `video` / `audio` / `text`——全部接**模型節點輸出**,不收檔案路徑 | `prompt` / `images` / `video` / `audio` / `model_path` / `media_info`(精簡對稱) | 集成器 |
+| **NM Muse 取樣器 (Sampler)**(生成用) | `image_model` / `video_model` / `audio_model`(MODEL)+ `clip` + `vae` | `images` / `video` / `audio` / `prompt` / `media_info` | **節點內直接取樣生成**(t2i / img2img / t2v / t2a) |
+| **NM Muse 集成樞紐 (Hub)**(路由用) | `images` / `video` / `audio` / `text`——接模型節點輸出 | `prompt` / `images` / `video` / `audio` / `model_path` / `media_info` | 媒體 + 提示詞集成路由 |
 | NM Muse 靈感提示欄 | `*_in` 舊命名 | 11 孔完整版(含 `video_frames` / `fps` / 首尾幀) | 進階拆解 / 既有工作流 |
+
+### 取樣器(Sampler)重點
+
+- `mode=auto`:接哪個模型生哪個(優先序 image > video > audio)
+- 空 latent 從 model 的 `latent_format` 自動推導(channels / 2D圖 / 3D影片 / 1D音訊),
+  影片家族比例對照:LTXV 32/8、Wan 8/4、Hunyuan 8/4、Cosmos 8/8、Mochi 8/6
+- 上傳圖(@tag)+ `denoise < 1.0` = **img2img**(以第一張上傳圖為底)
+- 取樣參數齊全:seed / steps / cfg / sampler / scheduler / denoise / 尺寸 / 幀數 / fps / 秒數
+- 已實測:SD1.5 t2i 與 img2img ✅;影片/音訊為泛用路徑,LTX 家族建議搭官方
+  conditioning 流程先實測(LTXVConditioning 的 frame_rate 未內建)
 
 原則:**檔案一律走上傳(media_json),模型輸出一律走節點孔**,兩者不混。
 兩顆共用同一套工具列(上傳 / @tag / ⬆生成),運算邏輯單一來源

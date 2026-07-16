@@ -19,9 +19,13 @@ if __package__:
         NODE_CLASS_MAPPINGS as _HUB_NODES,
         NODE_DISPLAY_NAME_MAPPINGS as _HUB_NAMES,
     )
+    from .modules.sampler_nodes import (
+        NODE_CLASS_MAPPINGS as _SAMPLER_NODES,
+        NODE_DISPLAY_NAME_MAPPINGS as _SAMPLER_NAMES,
+    )
 
-    NODE_CLASS_MAPPINGS = {**_MUSE_NODES, **_HUB_NODES}
-    NODE_DISPLAY_NAME_MAPPINGS = {**_MUSE_NAMES, **_HUB_NAMES}
+    NODE_CLASS_MAPPINGS = {**_MUSE_NODES, **_HUB_NODES, **_SAMPLER_NODES}
+    NODE_DISPLAY_NAME_MAPPINGS = {**_MUSE_NAMES, **_HUB_NAMES, **_SAMPLER_NAMES}
 
     # 給外部前端系統的查詢路由:列出已上傳的 Muse 媒體
     try:
@@ -62,8 +66,9 @@ if __package__:
     print("=" * 70)
     print("📦 節點:")
     print("   🖋️ NM Muse 靈感提示欄(NMMuseNode,維持相容)")
-    print("   🔀 NM Muse 集成樞紐 Hub(NMMuseHubNode,輸入孔乾淨命名:")
-    print("      images / video / audio / model_path / text)")
+    print("   🔀 NM Muse 集成樞紐 Hub(NMMuseHubNode:images/video/audio/text 接模型輸出)")
+    print("   🎲 NM Muse 取樣器 Sampler(NMMuseSamplerNode:image_model/video_model/")
+    print("      audio_model + CLIP/VAE,節點內直接取樣生成)")
     print("📦 功能:")
     print("   ⬆ 上傳圖片 / 影片 / 音訊 / 3D(多選,存 input/nm_muse/)")
     print("   🏷️ 提示詞 @tag 引用媒體(輸入 @ 自動完成、點縮圖插入)")

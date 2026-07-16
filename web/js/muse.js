@@ -5,8 +5,8 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 
-// 兩個節點共用同一套工具列:靈感提示欄 + 集成樞紐 Hub
-const NODE_CLASSES = new Set(["NMMuseNode", "NMMuseHubNode"]);
+// 共用同一套工具列:靈感提示欄 + 集成樞紐 Hub + 取樣器 Sampler
+const NODE_CLASSES = new Set(["NMMuseNode", "NMMuseHubNode", "NMMuseSamplerNode"]);
 const UPLOAD_SUBFOLDER = "nm_muse";
 
 const IMAGE_EXTS = ["png", "jpg", "jpeg", "webp", "bmp", "gif", "tiff"];

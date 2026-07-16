@@ -60,7 +60,8 @@ MEDIA = [
 # ----------------------------------------------------------------------
 
 def test_node_mappings(pkg):
-    assert set(pkg.NODE_CLASS_MAPPINGS) == {"NMMuseNode", "NMMuseHubNode"}
+    assert set(pkg.NODE_CLASS_MAPPINGS) == {
+        "NMMuseNode", "NMMuseHubNode", "NMMuseSamplerNode"}
     assert set(pkg.NODE_DISPLAY_NAME_MAPPINGS) == set(pkg.NODE_CLASS_MAPPINGS)
     assert pkg.WEB_DIRECTORY == "./web"
 
@@ -253,6 +254,59 @@ def test_hub_delegates_compose(pkg):
     parsed = json.loads(info)
     assert parsed["inputs_connected"]["video_in"] is True
     assert parsed["inputs_connected"]["text_in"] is True
+
+
+def test_sampler_io(pkg):
+    """Sampler:模型輸入孔 image_model/video_model/audio_model + clip/vae"""
+    s = pkg.NODE_CLASS_MAPPINGS["NMMuseSamplerNode"]
+    it = s.INPUT_TYPES()
+    assert set(it["optional"]) == {"image_model", "video_model", "audio_model",
+                                   "clip", "vae"}
+    assert it["optional"]["image_model"][0] == "MODEL"
+    assert it["optional"]["video_model"][0] == "MODEL"
+    assert it["optional"]["audio_model"][0] == "MODEL"
+    assert it["optional"]["clip"][0] == "CLIP"
+    assert it["optional"]["vae"][0] == "VAE"
+    for k in ("prompt", "media_json", "negative_prompt", "mode", "seed",
+              "steps", "cfg", "sampler_name", "scheduler", "denoise",
+              "width", "height", "video_frames", "fps", "audio_seconds"):
+        assert k in it["required"], k
+    assert s.RETURN_NAMES == ("images", "video", "audio", "prompt", "media_info")
+    assert not getattr(s, "OUTPUT_NODE", False)
+
+
+def test_sampler_pick_modality(pkg):
+    sm = sys.modules[f"{PKG_NAME}.modules.sampler_nodes"]
+    # auto:接哪個生哪個,優先序 image > video > audio
+    assert sm.pick_modality("auto", True, True, True) == "image"
+    assert sm.pick_modality("auto", False, True, True) == "video"
+    assert sm.pick_modality("auto", False, False, True) == "audio"
+    assert sm.pick_modality("auto", False, False, False) is None
+    # 指定 mode 但沒接對應模型 → None
+    assert sm.pick_modality("video", False, True, False) == "video"
+    assert sm.pick_modality("video", True, False, False) is None
+
+
+def test_sampler_video_ratio(pkg):
+    sm = sys.modules[f"{PKG_NAME}.modules.sampler_nodes"]
+    assert sm.video_ratio_for("LTXV") == (32, 8)
+    assert sm.video_ratio_for("Wan21") == (8, 4)
+    assert sm.video_ratio_for("Wan22") == (8, 4)
+    assert sm.video_ratio_for("Unknown") == (8, 4)
+
+
+def test_sampler_requires_model(pkg):
+    """沒接模型 / 缺 clip / 缺 vae 要拋清楚的錯誤"""
+    s = pkg.NODE_CLASS_MAPPINGS["NMMuseSamplerNode"]()
+    kw = dict(negative_prompt="", mode="auto", seed=0, steps=1, cfg=1.0,
+              sampler_name="euler", scheduler="normal", denoise=1.0,
+              width=64, height=64, video_frames=9, fps=8.0, audio_seconds=2.0)
+    with pytest.raises(RuntimeError, match="模型輸入沒接"):
+        s.generate("t", "[]", **kw)
+    with pytest.raises(RuntimeError, match="clip"):
+        s.generate("t", "[]", image_model=object(), **kw)
+    with pytest.raises(RuntimeError, match="vae"):
+        s.generate("t", "[]", image_model=object(), clip=object(), **kw)
 
 
 def test_video_components_object(pkg):
