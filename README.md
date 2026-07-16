@@ -50,13 +50,14 @@ image / audio / video / 3D / text 五種媒體 **input、output 對稱**,
 
 ## 兩顆節點
 
-| 節點 | 輸入孔命名 | 用途 |
-|------|-----------|------|
-| **NM Muse 集成樞紐 (Hub)** | `images` / `video` / `audio` / `model_path` / `text`(乾淨命名,**建議使用**) | 接模型輸出的集成器 |
-| NM Muse 靈感提示欄 | `images_in` / `video_in` / `audio_in` / `model_in` / `text_in` | 舊版,維持相容不再變動 |
+| 節點 | 輸入孔 | 輸出孔 | 用途 |
+|------|--------|--------|------|
+| **NM Muse 集成樞紐 (Hub)**(建議) | `images` / `video` / `audio` / `text`——全部接**模型節點輸出**,不收檔案路徑 | `prompt` / `images` / `video` / `audio` / `model_path` / `media_info`(精簡對稱) | 集成器 |
+| NM Muse 靈感提示欄 | `*_in` 舊命名 | 11 孔完整版(含 `video_frames` / `fps` / 首尾幀) | 進階拆解 / 既有工作流 |
 
-兩顆共用同一套工具列(上傳 / @tag / ⬆生成)與相同的 11 個輸出,
-運算邏輯單一來源(Hub 委託靈感提示欄的 compose)。
+原則:**檔案一律走上傳(media_json),模型輸出一律走節點孔**,兩者不混。
+兩顆共用同一套工具列(上傳 / @tag / ⬆生成),運算邏輯單一來源
+(Hub 委託靈感提示欄的 compose)。
 
 ## 外部前端系統整合(API 驅動)
 
