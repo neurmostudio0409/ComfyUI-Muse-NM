@@ -295,6 +295,44 @@ def test_sampler_video_ratio(pkg):
     assert sm.video_ratio_for("Unknown") == (8, 4)
 
 
+def test_sampler_empty_latent_shapes(pkg):
+    """各家族空 latent 形狀(需 torch,CI 自動跳過)"""
+    pytest.importorskip("torch")
+    s = pkg.NODE_CLASS_MAPPINGS["NMMuseSamplerNode"]()
+
+    class Wan21:
+        latent_channels, latent_dimensions = 16, 3
+
+    class LTXV:
+        latent_channels, latent_dimensions = 128, 3
+
+    class SD15:
+        latent_channels, latent_dimensions = 4, 2
+
+    class StableAudio1:
+        latent_channels, latent_dimensions = 64, 1
+
+    class FakeModel:
+        def __init__(self, lf):
+            self._lf = lf
+
+        def get_model_object(self, name):
+            return self._lf
+
+    # Wan 8/4:832x480 33 幀 → [1,16,9,60,104]
+    lat = s._empty_latent(FakeModel(Wan21()), "video", 832, 480, 33, 2.0)
+    assert list(lat.shape) == [1, 16, 9, 60, 104]
+    # LTXV 32/8:832x480 33 幀 → [1,128,5,15,26]
+    lat = s._empty_latent(FakeModel(LTXV()), "video", 832, 480, 33, 2.0)
+    assert list(lat.shape) == [1, 128, 5, 15, 26]
+    # SD 圖片:512 → [1,4,64,64]
+    lat = s._empty_latent(FakeModel(SD15()), "image", 512, 512, 33, 2.0)
+    assert list(lat.shape) == [1, 4, 64, 64]
+    # 音訊 1D:[1,64,L]
+    lat = s._empty_latent(FakeModel(StableAudio1()), "audio", 512, 512, 33, 10.0)
+    assert lat.dim() == 3 and lat.shape[1] == 64
+
+
 def test_sampler_requires_model(pkg):
     """沒接模型 / 缺 clip / 缺 vae 要拋清楚的錯誤"""
     s = pkg.NODE_CLASS_MAPPINGS["NMMuseSamplerNode"]()

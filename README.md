@@ -66,8 +66,9 @@ image / audio / video / 3D / text 五種媒體 **input、output 對稱**,
 - 已實測:SD1.5 t2i 與 img2img ✅;**fp8** ✅(用 core「Load Diffusion Model /
   UNETLoader」的 `weight_dtype=fp8_e4m3fn` 載入後接 `image_model`/`video_model`,
   取樣器對 MODEL 物件的精度無感,fp8/fp16/bf16 通吃——WAN/Flux fp8 檔同理)
-- 影片/音訊為泛用路徑,LTX 家族建議搭官方 conditioning 流程先實測
-  (LTXVConditioning 的 frame_rate 未內建)
+- LTX 家族自動在 conditioning 補 `frame_rate`(等同官方 LTXVConditioning,免手接)
+- 影片/音訊為泛用路徑(latent 形狀已用 Wan/LTXV/音訊家族 mock 驗證);
+  實機跑真模型時若遇型別問題請回報
 
 原則:**檔案一律走上傳(media_json),模型輸出一律走節點孔**,兩者不混。
 兩顆共用同一套工具列(上傳 / @tag / ⬆生成),運算邏輯單一來源

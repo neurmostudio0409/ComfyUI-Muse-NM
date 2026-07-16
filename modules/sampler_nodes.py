@@ -14,8 +14,8 @@ NM Muse 取樣器 (Sampler)
   * 上傳圖(@tag)+ denoise<1 → img2img(image 模式)
   * 輸出精簡:images / video / audio / prompt / media_info
 
-已知限制(README 亦註明):LTX 官方流程建議搭 LTXVConditioning(frame_rate),
-本節點用一般 conditioning,LTX 家族請先實測;音訊模型以 44.1kHz VAE 家族為準。
+已知限制(README 亦註明):音訊模型以 44.1kHz VAE 家族為準;
+LTX 家族會自動在 conditioning 補 frame_rate(等同官方 LTXVConditioning)。
 """
 
 import json
@@ -147,6 +147,18 @@ class NMMuseSamplerNode:
         import nodes as core_nodes
         return core_nodes.CLIPTextEncode().encode(clip, text)[0]
 
+    def _apply_family_conditioning(self, model, positive, negative, fps):
+        """家族特化 conditioning:LTXV 需要 frame_rate(等同官方 LTXVConditioning)"""
+        lf_name = type(model.get_model_object("latent_format")).__name__
+        if lf_name.startswith("LTXV"):
+            import node_helpers
+            positive = node_helpers.conditioning_set_values(
+                positive, {"frame_rate": fps})
+            negative = node_helpers.conditioning_set_values(
+                negative, {"frame_rate": fps})
+            print(f"🎬 LTXV:conditioning 已補 frame_rate={fps}")
+        return positive, negative
+
     # ------------------------------------------------------------------
     def generate(self, prompt, media_json, negative_prompt, mode, seed, steps,
                  cfg, sampler_name, scheduler, denoise, width, height,
@@ -173,6 +185,9 @@ class NMMuseSamplerNode:
         resolved = resolve_prompt(prompt, media)
         positive = self._encode(clip, prompt)
         negative = self._encode(clip, negative_prompt)
+        if modality == "video":
+            positive, negative = self._apply_family_conditioning(
+                model, positive, negative, fps)
 
         # 空 latent;image 模式且有上傳圖 + denoise<1 → img2img
         latent = None
