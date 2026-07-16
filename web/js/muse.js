@@ -5,7 +5,8 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 
-const NODE_CLASS = "NMMuseNode";
+// 兩個節點共用同一套工具列:靈感提示欄 + 集成樞紐 Hub
+const NODE_CLASSES = new Set(["NMMuseNode", "NMMuseHubNode"]);
 const UPLOAD_SUBFOLDER = "nm_muse";
 
 const IMAGE_EXTS = ["png", "jpg", "jpeg", "webp", "bmp", "gif", "tiff"];
@@ -37,7 +38,7 @@ function nextTag(kind, media) {
 app.registerExtension({
     name: "NM.Muse",
     async beforeRegisterNodeDef(nodeType, nodeData) {
-        if (nodeData.name !== NODE_CLASS) return;
+        if (!NODE_CLASSES.has(nodeData.name)) return;
         const onNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {
             const r = onNodeCreated?.apply(this, arguments);

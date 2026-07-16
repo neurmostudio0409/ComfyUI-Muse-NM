@@ -48,8 +48,23 @@ image / audio / video / 3D / text 五種媒體 **input、output 對稱**,
 | `model_path` | STRING | `model_in` 優先,否則第一個上傳 3D 模型的路徑 |
 | `media_info` | STRING | 完整媒體清單 JSON(含 `model_paths`、`fps`、輸入連接狀態) |
 
-輸入孔(全部 optional):`images_in`(IMAGE)、`video_in`(VIDEO)、
-`audio_in`(AUDIO)、`model_in`(STRING 路徑)、`text_in`(STRING)。
+## 兩顆節點
+
+| 節點 | 輸入孔命名 | 用途 |
+|------|-----------|------|
+| **NM Muse 集成樞紐 (Hub)** | `images` / `video` / `audio` / `model_path` / `text`(乾淨命名,**建議使用**) | 接模型輸出的集成器 |
+| NM Muse 靈感提示欄 | `images_in` / `video_in` / `audio_in` / `model_in` / `text_in` | 舊版,維持相容不再變動 |
+
+兩顆共用同一套工具列(上傳 / @tag / ⬆生成)與相同的 11 個輸出,
+運算邏輯單一來源(Hub 委託靈感提示欄的 compose)。
+
+## 外部前端系統整合(API 驅動)
+
+1. `POST /upload/image`(multipart:`image`=檔案、`subfolder=nm_muse`、`type=input`)上傳媒體
+2. `GET /muse/media` 列出已上傳媒體(`name` / `subfolder` / `type` / `kind`)
+3. 組 `media_json`(`[{"tag":"img1","name":"...","subfolder":"nm_muse","type":"input","kind":"image"}]`)
+   與 `prompt` 填入 workflow JSON 的 Hub 節點 widget,`POST /prompt` 送出
+4. 所有節點狀態都是 widget,外部系統可完全繞過 ComfyUI 前端操作
 
 - **only_tagged** 開關:開啟時只輸出提示詞中 `@` 到的媒體;預設輸出全部
 - **不落地原則**:本節點不寫任何檔案,上傳檔走 ComfyUI 內建 `/upload/image`

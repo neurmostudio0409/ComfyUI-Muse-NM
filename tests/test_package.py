@@ -60,7 +60,7 @@ MEDIA = [
 # ----------------------------------------------------------------------
 
 def test_node_mappings(pkg):
-    assert set(pkg.NODE_CLASS_MAPPINGS) == {"NMMuseNode"}
+    assert set(pkg.NODE_CLASS_MAPPINGS) == {"NMMuseNode", "NMMuseHubNode"}
     assert set(pkg.NODE_DISPLAY_NAME_MAPPINGS) == set(pkg.NODE_CLASS_MAPPINGS)
     assert pkg.WEB_DIRECTORY == "./web"
 
@@ -219,6 +219,39 @@ def test_compose_passthrough_inputs(pkg):
     assert out["model_path"] == "D:/models/chair.glb"
     # 拆解失敗要安全回退,不拋例外
     assert out["video_frames"] is None and out["fps"] == 0.0
+
+
+def test_hub_clean_input_names(pkg):
+    """Hub 輸入孔命名乾淨(接模型用),無 _in 後綴;輸出同 NMMuseNode"""
+    hub = pkg.NODE_CLASS_MAPPINGS["NMMuseHubNode"]
+    muse = pkg.NODE_CLASS_MAPPINGS["NMMuseNode"]
+    it = hub.INPUT_TYPES()
+    assert set(it["optional"]) == {"only_tagged", "images", "video", "audio",
+                                   "model_path", "text"}
+    assert not any(k.endswith("_in") for k in it["optional"])
+    assert it["optional"]["images"][0] == "IMAGE"
+    assert it["optional"]["video"][0] == "VIDEO"
+    assert it["optional"]["audio"][0] == "AUDIO"
+    assert it["optional"]["model_path"][1]["forceInput"] is True
+    assert it["optional"]["text"][1]["forceInput"] is True
+    assert hub.RETURN_TYPES == muse.RETURN_TYPES
+    assert hub.RETURN_NAMES == muse.RETURN_NAMES
+    assert hub.CATEGORY == "utils/NM/Muse"
+    assert not getattr(hub, "OUTPUT_NODE", False)
+
+
+def test_hub_delegates_compose(pkg):
+    """Hub compose 委託 NMMuseNode,行為一致"""
+    hub = pkg.NODE_CLASS_MAPPINGS["NMMuseHubNode"]()
+    fake_video = _FakeVideo()
+    out = _out(hub.compose("依據 @text 生成", "[]", video=fake_video,
+                           model_path="D:/models/chair.glb", text="一隻橘貓"))
+    assert out["prompt"] == "依據 一隻橘貓 生成"
+    assert out["video"] is fake_video
+    assert out["model_path"] == "D:/models/chair.glb"
+    parsed = json.loads(out["media_info"])
+    assert parsed["inputs_connected"]["video_in"] is True
+    assert parsed["inputs_connected"]["model_in"] is True
 
 
 def test_video_components_object(pkg):
