@@ -63,8 +63,11 @@ image / audio / video / 3D / text 五種媒體 **input、output 對稱**,
   影片家族比例對照:LTXV 32/8、Wan 8/4、Hunyuan 8/4、Cosmos 8/8、Mochi 8/6
 - 上傳圖(@tag)+ `denoise < 1.0` = **img2img**(以第一張上傳圖為底)
 - 取樣參數齊全:seed / steps / cfg / sampler / scheduler / denoise / 尺寸 / 幀數 / fps / 秒數
-- 已實測:SD1.5 t2i 與 img2img ✅;影片/音訊為泛用路徑,LTX 家族建議搭官方
-  conditioning 流程先實測(LTXVConditioning 的 frame_rate 未內建)
+- 已實測:SD1.5 t2i 與 img2img ✅;**fp8** ✅(用 core「Load Diffusion Model /
+  UNETLoader」的 `weight_dtype=fp8_e4m3fn` 載入後接 `image_model`/`video_model`,
+  取樣器對 MODEL 物件的精度無感,fp8/fp16/bf16 通吃——WAN/Flux fp8 檔同理)
+- 影片/音訊為泛用路徑,LTX 家族建議搭官方 conditioning 流程先實測
+  (LTXVConditioning 的 frame_rate 未內建)
 
 原則:**檔案一律走上傳(media_json),模型輸出一律走節點孔**,兩者不混。
 兩顆共用同一套工具列(上傳 / @tag / ⬆生成),運算邏輯單一來源
