@@ -68,21 +68,28 @@ def load_image_tensor(path: str):
 def load_image_batch(items: list):
     """
     多張圖組成 IMAGE batch;尺寸不一時以第一張為準縮放。
-    items 為空回傳 None。
+    沒有任何可載入的檔案回傳 None——先確認再 import torch,
+    讓無 torch 環境(CI)也能安全走空路徑。
     """
-    import numpy as np
-    import torch
-    from PIL import Image
-
-    tensors = []
+    paths = []
     for it in items:
         path = media_path(it)
-        if not os.path.exists(path):
+        if os.path.exists(path):
+            paths.append(path)
+        else:
             print(f"⚠️ 找不到圖片 {path},略過")
-            continue
-        tensors.append(load_image_tensor(path))
-    if not tensors:
+    if not paths:
         return None
+
+    try:
+        import numpy as np
+        import torch
+        from PIL import Image
+    except ImportError as e:
+        print(f"⚠️ 缺少 torch/PIL,無法載入圖片: {e}")
+        return None
+
+    tensors = [load_image_tensor(p) for p in paths]
 
     h, w = tensors[0].shape[1], tensors[0].shape[2]
     aligned = []
@@ -160,8 +167,12 @@ def load_audio(item: dict):
 
     import wave
 
-    import numpy as np
-    import torch
+    try:
+        import numpy as np
+        import torch
+    except ImportError as e:
+        print(f"⚠️ 缺少 torch,無法載入音訊: {e}")
+        return None
 
     with wave.open(path, "rb") as wf:
         sample_rate = wf.getframerate()
