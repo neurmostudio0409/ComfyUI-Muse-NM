@@ -118,6 +118,25 @@ def load_video(item: dict):
         return None
 
 
+def video_components(video):
+    """
+    VIDEO 物件拆解成 (frames IMAGE, audio dict|None, fps float)。
+    LTX / WAN 等本地模型吃幀序列,不吃 VIDEO 物件(參考 WhatDreamsCost LoadVideoUI)。
+    拆解失敗回傳 (None, None, 0.0),不拋例外。
+    """
+    if video is None:
+        return None, None, 0.0
+    try:
+        comps = video.get_components()
+        frames = comps.images
+        audio = comps.audio if comps.audio and comps.audio.get("waveform") is not None else None
+        fps = float(comps.frame_rate) if comps.frame_rate else 0.0
+        return frames, audio, fps
+    except Exception as e:
+        print(f"⚠️ 影片拆解失敗(video_frames/fps 輸出為空): {e}")
+        return None, None, 0.0
+
+
 # ----------------------------------------------------------------------
 # 音訊 → AUDIO dict
 # ----------------------------------------------------------------------

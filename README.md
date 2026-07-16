@@ -1,8 +1,10 @@
 # ComfyUI-Muse-NM
 
-**NM Muse 靈感提示欄** — Grok 官網風格的媒體提示輸入節點:
-上傳圖片 / 影片 / 音訊,在提示詞中用 `@tag` 引用剛上傳的媒體,
-輸出全部是 ComfyUI 通用型別,可以接**任何**下游模型節點。
+**NM Muse 靈感提示欄** — Grok 官網風格的**多媒體集成器**:
+image / audio / video / 3D / text 五種媒體 **input、output 對稱**,
+上傳 + 上游輸入合流,在提示詞中用 `@tag` 引用媒體,
+輸出全部是 ComfyUI 通用型別,可以接**任何**上下游模型節點
+(LTX、WAN、CLIP、LLM、TTS、image-to-3D、API 套件…)。
 
 ```
 ┌─────────────────────────────────┐
@@ -35,13 +37,19 @@
 
 | 輸出 | 型別 | 說明 |
 |------|------|------|
-| `prompt` | STRING | 原始提示詞(含 `@tag`) |
+| `prompt` | STRING | 提示詞(含 `@tag`;`@text` 已替換為 `text_in` 內容) |
 | `prompt_resolved` | STRING | `@img1` 展開為 `[image img1: cat.png]`,適合餵 LLM |
-| `images` | IMAGE | 上傳圖片組成的 batch(尺寸不一以第一張為準縮放) |
-| `video` | VIDEO | 第一部上傳影片(核心 VIDEO 型別,可接 Save Video / 影片模型) |
-| `audio` | AUDIO | 第一段上傳音訊(`{waveform, sample_rate}`),`audio_in` 優先 |
-| `model_path` | STRING | 第一個上傳 3D 模型的檔案路徑(接 image-to-3D / 3D 檢視節點) |
-| `media_info` | STRING | 完整媒體清單 JSON(含 `model_paths` 與輸入連接狀態) |
+| `images` | IMAGE | `images_in` + 上傳圖片合併 batch(尺寸不一以第一張為準縮放) |
+| `first_image` / `last_image` | IMAGE | 合併 batch 的首/尾幀(LTX FFLF 首尾幀工作流直接接) |
+| `video` | VIDEO | `video_in` 優先,否則第一部上傳影片(接 Save Video 等) |
+| `video_frames` | IMAGE | 影片拆幀(LTX / WAN 等本地模型吃幀序列,直接接這裡) |
+| `fps` | FLOAT | 影片幀率(接影片重組節點) |
+| `audio` | AUDIO | 優先鏈:`audio_in` > 上傳音訊 > **影片音軌** |
+| `model_path` | STRING | `model_in` 優先,否則第一個上傳 3D 模型的路徑 |
+| `media_info` | STRING | 完整媒體清單 JSON(含 `model_paths`、`fps`、輸入連接狀態) |
+
+輸入孔(全部 optional):`images_in`(IMAGE)、`video_in`(VIDEO)、
+`audio_in`(AUDIO)、`model_in`(STRING 路徑)、`text_in`(STRING)。
 
 - **only_tagged** 開關:開啟時只輸出提示詞中 `@` 到的媒體;預設輸出全部
 - **不落地原則**:本節點不寫任何檔案,上傳檔走 ComfyUI 內建 `/upload/image`
