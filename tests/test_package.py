@@ -62,7 +62,8 @@ MEDIA = [
 def test_node_mappings(pkg):
     assert set(pkg.NODE_CLASS_MAPPINGS) == {
         "NMMuseNode", "NMMuseHubNode", "NMMuseSamplerNode",
-        "NMMockImageNode", "NMMockVideoNode", "NMMockAudioNode", "NMMockTextNode"}
+        "NMMockImageNode", "NMMockVideoNode", "NMMockAudioNode", "NMMockTextNode",
+        "NMMuseMultiImageNode"}
     assert set(pkg.NODE_DISPLAY_NAME_MAPPINGS) == set(pkg.NODE_CLASS_MAPPINGS)
     assert pkg.WEB_DIRECTORY == "./web"
 
@@ -346,6 +347,21 @@ def test_sampler_requires_model(pkg):
         s.generate("t", "[]", image_model=object(), **kw)
     with pytest.raises(RuntimeError, match="vae"):
         s.generate("t", "[]", image_model=object(), clip=object(), **kw)
+
+
+def test_multi_image_node(pkg):
+    """多圖上傳:OUTPUT_IS_LIST=(True,False),空清單拋明確錯誤,web/js 存在"""
+    node_cls = pkg.NODE_CLASS_MAPPINGS["NMMuseMultiImageNode"]
+    assert node_cls.OUTPUT_IS_LIST == (True, False)
+    assert node_cls.RETURN_TYPES == ("IMAGE", "INT")
+    assert node_cls.CATEGORY == "utils/NM/Muse"
+    it = node_cls.INPUT_TYPES()
+    assert it["required"]["image_paths"][0] == "STRING"
+    with pytest.raises(RuntimeError, match="Upload Images"):
+        node_cls().load("")
+    with pytest.raises(RuntimeError, match="Upload Images"):
+        node_cls().load("missing/none_1.png\nmissing/none_2.png")
+    assert os.path.exists(os.path.join(ROOT, "web", "js", "multi_image.js"))
 
 
 def test_mock_text_deterministic(pkg):
