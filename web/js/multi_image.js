@@ -88,12 +88,11 @@ function setupMultiImage(node) {
     });
 
     // ------------------------------------------------------------------
-    // 上傳(ComfyUI 內建 /upload/image → input/grok_refs/)
+    // 上傳(ComfyUI 內建 /upload/image → input/nm_muse/)
     // ------------------------------------------------------------------
-    uploadBtn.onclick = () => fileInput.click();
-    fileInput.onchange = async () => {
+    async function uploadFiles(files) {
         const paths = getPaths();
-        for (const file of fileInput.files) {
+        for (const file of files) {
             const form = new FormData();
             form.append("image", file);
             form.append("subfolder", UPLOAD_SUBFOLDER);
@@ -113,16 +112,62 @@ function setupMultiImage(node) {
                 alert(`上傳失敗:${file.name}(${e})`);
             }
         }
-        fileInput.value = "";
         setPaths(paths);
+    }
+
+    uploadBtn.onclick = () => fileInput.click();
+    fileInput.onchange = async () => {
+        await uploadFiles([...fileInput.files]);
+        fileInput.value = "";
     };
+
+    // ------------------------------------------------------------------
+    // 拖曳上傳:整個容器都是 drop zone
+    // stopPropagation 必須,否則 ComfyUI 會把拖進來的圖當工作流載入
+    // ------------------------------------------------------------------
+    const IMAGE_RE = /\.(png|jpe?g|webp|bmp|gif|tiff?)$/i;
+    const setDragHighlight = (on) => {
+        container.style.borderColor = on ? "#6a9fff" : "#353545";
+        container.style.background = on ? "#263040" : "#222";
+    };
+    container.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = "copy";
+        setDragHighlight(true);
+    });
+    container.addEventListener("dragleave", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // 進入子元素也會觸發 dragleave,只在真正離開容器時還原
+        if (!container.contains(e.relatedTarget)) setDragHighlight(false);
+    });
+    container.addEventListener("drop", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragHighlight(false);
+        const files = [...(e.dataTransfer?.files || [])].filter(
+            (f) => f.type.startsWith("image/") || IMAGE_RE.test(f.name));
+        if (files.length) await uploadFiles(files);
+    });
 
     // ------------------------------------------------------------------
     // 縮圖格(編號 + 單張 ×)
     // ------------------------------------------------------------------
     function renderGrid() {
         grid.innerHTML = "";
-        getPaths().forEach((rel, idx) => {
+        const paths = getPaths();
+        if (!paths.length) {
+            const hint = document.createElement("div");
+            hint.textContent = "拖曳圖片到此處,或點 Upload Images";
+            hint.style.cssText =
+                "grid-column:1/-1;display:flex;align-items:center;justify-content:center;" +
+                "min-height:120px;color:#777;font-size:12px;border:1px dashed #454555;" +
+                "border-radius:4px;pointer-events:none;";
+            grid.append(hint);
+            return;
+        }
+        paths.forEach((rel, idx) => {
             const cell = document.createElement("div");
             cell.style.cssText =
                 "position:relative;border:1px solid #353545;border-radius:4px;" +
