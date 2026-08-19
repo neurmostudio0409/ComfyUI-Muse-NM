@@ -139,3 +139,8 @@ pytest tests -v
 ```
 
 GitHub Actions 於 push / PR 自動跑測試;推 `v*` tag 自動打包 zip 發 Release。
+
+## 授權 License
+
+本專案採用 [GNU General Public License v3.0](LICENSE) 授權。
+This project is licensed under the GNU General Public License v3.0 — see the [LICENSE](LICENSE) file for details.
